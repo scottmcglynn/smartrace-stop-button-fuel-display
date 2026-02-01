@@ -1,13 +1,14 @@
 # SmartRace Fuel Display - Web Configurable Version
 
 ## Features
-- Web-based configuration (no code changes needed)
+- Web-based configuration
 - Automatic AP mode for initial setup
 - Falls back to AP mode if WiFi fails
 - Accessible via mDNS: `sr-fuel-N.local` (where N = controller ID)
 - EEPROM storage for persistent settings
 - Button controls for IP display and reset
 - Unique mDNS name per controller (no conflicts with multiple units)
+- Runs on ESP8266 hardware with an I2C display device at 128 x 32 pixels and any momentary button that closes on contact
 
 ## First Time Setup
 

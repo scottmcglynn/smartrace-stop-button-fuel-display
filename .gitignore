@@ -1,0 +1,18 @@
+# Arduino build artifacts
+*.elf
+*.bin
+*.hex
+*.eep
+*.map
+
+# IDE files
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+
+# Backup files
+*~
+*.bak

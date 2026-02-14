@@ -7,6 +7,7 @@
 #include <Adafruit_SSD1306.h>
 #include <ArduinoJson.h>
 #include <EEPROM.h>
+#include <ESP8266HTTPClient.h>
 
 // Display settings
 #define SCREEN_WIDTH 128
@@ -26,6 +27,8 @@ struct Config {
   int controller_id;
   bool configured;
   char magic[4];  // "CFG" to validate EEPROM
+  char light_host[64];
+  int light_port;
 };
 
 Config config;
@@ -88,6 +91,10 @@ button:hover{background:#0056b3}
 <input type="number" name="ws_port" value="%WS_PORT%" required placeholder="53919">
 <label>Controller ID</label>
 <input type="number" name="controller_id" value="%CONTROLLER_ID%" min="1" max="6" required>
+<label>SR Light Controller IP (optional)</label>
+<input type="text" name="light_host" value="%LIGHT_HOST%" placeholder="192.168.1.200">
+<label>SR Light Controller Port</label>
+<input type="number" name="light_port" value="%LIGHT_PORT%" placeholder="8080">
 <button type="submit">Save & Restart</button>
 </form>
 </div>
@@ -236,7 +243,8 @@ void handleButton() {
     // Short press (< 2 sec) - emergency stop (only if stop message not already showing)
     else if (pressDuration < 2000 && !apMode && !ipDisplayLocked && !raceEnded && !showingDriverInfo && !showingStopMessage) {
       sendStopCommand();
-      
+      sendLightCommand();
+
       display.clearDisplay();
       display.setTextSize(2);
       display.setCursor(10, 8);
@@ -289,6 +297,8 @@ void loadConfig() {
     config.ssid[0] = '\0';
     config.password[0] = '\0';
     config.ws_host[0] = '\0';
+    config.light_host[0] = '\0';
+    config.light_port = 8080;
   }
 }
 
@@ -395,7 +405,9 @@ void handleRoot() {
   page.replace("%WS_HOST%", config.ws_host);
   page.replace("%WS_PORT%", String(config.ws_port));
   page.replace("%CONTROLLER_ID%", String(config.controller_id));
-  
+  page.replace("%LIGHT_HOST%", config.light_host);
+  page.replace("%LIGHT_PORT%", String(config.light_port));
+
   server.send(200, "text/html; charset=UTF-8", page);
 }
 
@@ -416,7 +428,13 @@ void handleSave() {
   if (server.hasArg("controller_id")) {
     config.controller_id = server.arg("controller_id").toInt();
   }
-  
+  if (server.hasArg("light_host")) {
+    strncpy(config.light_host, server.arg("light_host").c_str(), sizeof(config.light_host) - 1);
+  }
+  if (server.hasArg("light_port")) {
+    config.light_port = server.arg("light_port").toInt();
+  }
+
   config.configured = true;
   saveConfig();
   
@@ -502,6 +520,20 @@ void sendStopCommand() {
   String jsonString;
   serializeJson(doc, jsonString);
   webSocket.sendTXT(jsonString);
+}
+
+void sendLightCommand() {
+  if (config.light_host[0] == '\0') return;
+
+  WiFiClient client;
+  HTTPClient http;
+  String url = "http://" + String(config.light_host) + ":" + String(config.light_port) + "/";
+  http.begin(client, url);
+  http.setConnectTimeout(500);
+  http.setTimeout(500);
+  http.addHeader("Content-Type", "application/json");
+  http.POST("{\"event_type\":\"event.change_status\",\"event_data\":{\"new\":\"suspended\"}}");
+  http.end();
 }
 
 void parseRaceData(char* json) {

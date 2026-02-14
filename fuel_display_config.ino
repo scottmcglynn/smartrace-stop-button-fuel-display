@@ -300,6 +300,14 @@ void loadConfig() {
     config.light_host[0] = '\0';
     config.light_port = 8080;
   }
+
+  // Sanitize light fields for configs saved before these fields existed
+  if (config.light_port <= 0 || config.light_port > 65535) {
+    config.light_port = 8080;
+  }
+  if (config.light_host[0] != '\0' && (config.light_host[0] < '0' || config.light_host[0] > '9')) {
+    config.light_host[0] = '\0';
+  }
 }
 
 void saveConfig() {
@@ -529,7 +537,6 @@ void sendLightCommand() {
   HTTPClient http;
   String url = "http://" + String(config.light_host) + ":" + String(config.light_port) + "/";
   http.begin(client, url);
-  http.setConnectTimeout(500);
   http.setTimeout(500);
   http.addHeader("Content-Type", "application/json");
   http.POST("{\"event_type\":\"event.change_status\",\"event_data\":{\"new\":\"suspended\"}}");
